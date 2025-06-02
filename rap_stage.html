@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>إضافة نقطة تقرير التربص</title>
+</head>
+<body>
+  <h2>إضافة نقطة تقرير التربص</h2>
+
+  <label for="specialty">اختر التخصص:</label><br>
+  <select id="specialty" required>
+    <option value="">-- اختر التخصص --</option>
+  </select><br><br>
+
+  <label for="student">اختر الطالب:</label><br>
+  <select id="student" required disabled>
+    <option value="">-- اختر الطالب --</option>
+  </select><br><br>
+
+  <label for="reportGrade">نقطة التقرير:</label><br>
+  <input type="number" id="reportGrade" min="0" max="20" required><br><br>
+
+  <button id="submitBtn">إرسال</button>
+
+  <p id="response" style="color:green; font-weight:bold;"></p>
+
+  <script>
+    const scriptURL = "https://script.google.com/macros/s/AKfycbyUwx4kFozApxAt02yB2VxSEimgt6JC3J-k8ORi25zFOunmgwaQJuouT6qiC7V9KsiJGg/exec";
+
+    // تحميل التخصصات
+    async function fetchSpecialties() {
+      try {
+        const res = await fetch(`${scriptURL}?action=getSpecialties`);
+        const data = await res.json();
+        const select = document.getElementById("specialty");
+        data.forEach(specialty => {
+          const option = document.createElement("option");
+          option.value = specialty;
+          option.textContent = specialty;
+          select.appendChild(option);
+        });
+      } catch (e) {
+        document.getElementById("response").innerText = "خطأ في تحميل التخصصات.";
+      }
+    }
+
+    // تحميل الطلاب عند اختيار تخصص
+    async function fetchStudents(specialty) {
+      const studentSelect = document.getElementById("student");
+      studentSelect.innerHTML = '<option value="">-- اختر الطالب --</option>';
+      studentSelect.disabled = true;
+
+      try {
+        const res = await fetch(`${scriptURL}?action=getStudents&specialty=${encodeURIComponent(specialty)}`);
+        const data = await res.json();
+
+        data.forEach(student => {
+          const option = document.createElement("option");
+          option.value = `${student.firstName}|${student.lastName}`;
+          option.textContent = `${student.firstName} ${student.lastName}`;
+          studentSelect.appendChild(option);
+        });
+
+        studentSelect.disabled = false;
+      } catch (e) {
+        document.getElementById("response").innerText = "خطأ في تحميل قائمة الطلاب.";
+      }
+    }
+
+    // حدث عند اختيار التخصص
+    document.getElementById("specialty").addEventListener("change", function () {
+      const specialty = this.value;
+      if (specialty) {
+        fetchStudents(specialty);
+      } else {
+        document.getElementById("student").innerHTML = '<option value="">-- اختر الطالب --</option>';
+        document.getElementById("student").disabled = true;
+      }
+    });
+
+    // إرسال البيانات
+    document.getElementById("submitBtn").addEventListener("click", async function () {
+      const specialty = document.getElementById("specialty").value;
+      const studentValue = document.getElementById("student").value;
+      const reportGrade = document.getElementById("reportGrade").value;
+
+      if (!specialty || !studentValue || !reportGrade) {
+        document.getElementById("response").innerText = "❗ يرجى ملء جميع الحقول.";
+        return;
+      }
+
+      const [firstName, lastName] = studentValue.split("|");
+
+      const payload = {
+        specialty,
+        firstName,
+        lastName,
+        reportGrade
+      };
+
+      try {
+        const response = await fetch(scriptURL, {
+          method: "POST",
+          body: JSON.stringify(payload),
+          headers: { "Content-Type": "application/json" }
+        });
+
+        const text = await response.text();
+        document.getElementById("response").innerText = text;
+      } catch (error) {
+        document.getElementById("response").innerText = "❌ حدث خطأ أثناء الإرسال.";
+      }
+    });
+
+    // تشغيل أولي
+    fetchSpecialties();
+  </script>
+</body>
+</html>
